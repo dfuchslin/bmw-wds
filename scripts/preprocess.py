@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Orchestrates steps 1-4 (applet -> navtree.js swap, per-language assets,
 charset-meta fix, language index.htm fix) across every language and model
-under /tmp/bmw_wds_12.
+under the data root (see --root).
 
 Usage:
-    python3 preprocess.py [--dry-run] [--root /tmp/bmw_wds_12]
+    python3 preprocess.py [--dry-run] [--root data]
 """
 import argparse
 import os
@@ -119,7 +119,7 @@ def run(root, dry_run):
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser()
 	parser.add_argument("--dry-run", action="store_true")
-	parser.add_argument("--root", default="/tmp/bmw_wds_12")
+	parser.add_argument("--root", default="data")
 	args = parser.parse_args()
 
 	if not os.path.isdir(args.root):

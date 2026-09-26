@@ -4,5 +4,5 @@ services:
     ports:
       - "8080:80"
     volumes:
-      - /tmp/bmw_wds_12:/usr/share/nginx/html:ro
+      - ${WDS_DATA_DIR:-./data}:/usr/share/nginx/html:ro
     restart: unless-stopped
