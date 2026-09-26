@@ -1,0 +1,8 @@
+services:
+  wds:
+    build: .
+    ports:
+      - "8080:80"
+    volumes:
+      - /tmp/bmw_wds_12:/usr/share/nginx/html:ro
+    restart: unless-stopped

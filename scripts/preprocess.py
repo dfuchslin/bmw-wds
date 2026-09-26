@@ -1,0 +1,129 @@
+#!/usr/bin/env python3
+"""Orchestrates steps 1-4 (applet -> navtree.js swap, per-language assets,
+charset-meta fix, language index.htm fix) across every language and model
+under /tmp/bmw_wds_12.
+
+Usage:
+    python3 preprocess.py [--dry-run] [--root /tmp/bmw_wds_12]
+"""
+import argparse
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import extract_tree_xml
+import patch_navi_htm
+import add_language_assets
+import fix_charset_meta
+import fix_language_index
+
+LANGUAGES = [
+	"ch", "de", "en", "fr", "gr", "it", "ja", "ko", "ni",
+	"po", "ru", "spa", "sv", "th", "tr", "us",
+]
+
+
+def find_model_dirs(lang_dir):
+	"""A model dir is any immediate subdir of a language dir that has a navi.htm."""
+	for name in sorted(os.listdir(lang_dir)):
+		path = os.path.join(lang_dir, name)
+		if os.path.isdir(path) and os.path.isfile(os.path.join(path, "navi.htm")):
+			yield path
+
+
+def run(root, dry_run):
+	release_dir = os.path.join(root, "release")
+	found_langs = [d for d in LANGUAGES if os.path.isdir(os.path.join(release_dir, d))]
+	missing_langs = [d for d in LANGUAGES if d not in found_langs]
+	if missing_langs:
+		print("WARNING: expected language dirs not found, skipping:", missing_langs)
+
+	totals = {
+		"models_patched": 0, "models_already": 0, "models_stub": 0,
+		"models_error": 0, "assets_copied": 0, "assets_already": 0,
+		"index_fixed": 0, "index_already": 0, "index_error": 0,
+	}
+	errors = []
+
+	for lang in found_langs:
+		lang_dir = os.path.join(release_dir, lang)
+
+		for model_dir in find_model_dirs(lang_dir):
+			model_name = os.path.basename(model_dir)
+			is_real = os.path.isfile(os.path.join(model_dir, "tree", "atc50c.jar"))
+			if not is_real:
+				totals["models_stub"] += 1
+				continue
+
+			xml_rel, status1 = extract_tree_xml.process(model_dir, dry_run=dry_run)
+			if xml_rel is None:
+				totals["models_error"] += 1
+				errors.append("{}/{}: extract_tree_xml: {}".format(lang, model_name, status1))
+				continue
+
+			navi_path = os.path.join(model_dir, "navi.htm")
+			status2 = patch_navi_htm.process(navi_path, xml_rel, dry_run=dry_run)
+			if status2 in ("patched", "would patch"):
+				totals["models_patched"] += 1
+			elif status2 == "already patched":
+				totals["models_already"] += 1
+			else:
+				totals["models_error"] += 1
+				errors.append("{}/{}: patch_navi_htm: {}".format(lang, model_name, status2))
+
+		asset_result = add_language_assets.process(lang_dir, dry_run=dry_run)
+		for _key, val in asset_result.items():
+			if val in ("copied", "would copy", "appended", "would append"):
+				totals["assets_copied"] += 1
+			else:
+				totals["assets_already"] += 1
+
+		index_path = os.path.join(lang_dir, "index.htm")
+		if os.path.isfile(index_path):
+			status4 = fix_language_index.process(index_path, dry_run=dry_run)
+			if status4 in ("fixed", "would fix"):
+				totals["index_fixed"] += 1
+			elif status4 == "already fixed":
+				totals["index_already"] += 1
+			else:
+				totals["index_error"] += 1
+				errors.append("{}/index.htm: fix_language_index: {}".format(lang, status4))
+
+	print("=== Steps 1-2 summary ({}) ===".format("DRY RUN" if dry_run else "APPLIED"))
+	print("languages processed:", len(found_langs))
+	print("models patched:      ", totals["models_patched"])
+	print("models already done: ", totals["models_already"])
+	print("models stub/skipped: ", totals["models_stub"])
+	print("models errored:      ", totals["models_error"])
+	print("language assets installed:", totals["assets_copied"])
+	print("language assets already present:", totals["assets_already"])
+	print("language index.htm fixed:", totals["index_fixed"])
+	print("language index.htm already fixed:", totals["index_already"])
+	print("language index.htm errors:", totals["index_error"])
+	if errors:
+		print("--- errors ---")
+		for e in errors:
+			print(" ", e)
+
+	print()
+	print("=== Step 3: charset meta fix (whole tree) ===")
+	charset_result = fix_charset_meta.process(root, dry_run=dry_run)
+	print("files changed:     ", charset_result["changed"])
+	print("already had charset:", charset_result["already_ok"])
+	if charset_result["skipped_no_head"]:
+		print("skipped (no <head> found):", len(charset_result["skipped_no_head"]))
+		for p in charset_result["skipped_no_head"][:20]:
+			print("  ", p)
+
+
+if __name__ == "__main__":
+	parser = argparse.ArgumentParser()
+	parser.add_argument("--dry-run", action="store_true")
+	parser.add_argument("--root", default="/tmp/bmw_wds_12")
+	args = parser.parse_args()
+
+	if not os.path.isdir(args.root):
+		print("error: root dir '{}' does not exist - run copy_source.sh first".format(args.root))
+		sys.exit(1)
+
+	run(args.root, args.dry_run)

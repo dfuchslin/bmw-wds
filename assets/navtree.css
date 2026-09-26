@@ -1,0 +1,14 @@
+
+/*Navigation Tree Section (JS replacement for atc50c.jar applet)*/
+.navtree			{font-family: 'Arial Unicode MS', Arial, Helvetica, Geneva, Swiss, SunSans-Regular; font-size: 12px; cursor: default;}
+.navtree ul			{list-style: none; margin: 0; padding-left: 16px;}
+.navtree ul ul		{border-left: 1px dotted #7F9DA6; margin-left: 6px;}
+.navtree			{padding-left: 0;}
+.navtree-row		{display: flex; align-items: center; padding: 1px 2px; white-space: nowrap;}
+.navtree-row:hover	{background: #0B5166; color: #FFFFFF;}
+.navtree-row.selected	{background: #0B5166; color: #FFFFFF;}
+.navtree-toggle		{width: 12px; flex: 0 0 12px; text-align: center; font-family: monospace; font-size: 11px; color: #4D4D4D; margin-right: 2px;}
+.navtree-icon		{width: 16px; height: 16px; flex: 0 0 16px; margin-right: 4px;}
+.navtree-label		{overflow: hidden; text-overflow: ellipsis;}
+.navtree-leaf.active > .navtree-row .navtree-label	{color: #FF0066; font-weight: bold;}
+.navtree-row.search-hit	{background: #FFE066; color: #000000; outline: 2px solid #B58900;}
