@@ -16,6 +16,7 @@ import patch_navi_htm
 import add_language_assets
 import fix_charset_meta
 import fix_language_index
+import fix_svg_locatetree_bridge
 
 LANGUAGES = [
 	"ch", "de", "en", "fr", "gr", "it", "ja", "ko", "ni",
@@ -42,6 +43,7 @@ def run(root, dry_run):
 		"models_patched": 0, "models_already": 0, "models_stub": 0,
 		"models_error": 0, "assets_copied": 0, "assets_already": 0,
 		"index_fixed": 0, "index_already": 0, "index_error": 0,
+		"treejs_fixed": 0, "treejs_already": 0, "treejs_error": 0,
 	}
 	errors = []
 
@@ -89,6 +91,17 @@ def run(root, dry_run):
 				totals["index_error"] += 1
 				errors.append("{}/index.htm: fix_language_index: {}".format(lang, status4))
 
+		tree_js_path = os.path.join(lang_dir, "scripts", "tree.js")
+		if os.path.isfile(tree_js_path):
+			status5 = fix_svg_locatetree_bridge.process(tree_js_path, dry_run=dry_run)
+			if status5 in ("fixed", "would fix"):
+				totals["treejs_fixed"] += 1
+			elif status5 == "already fixed":
+				totals["treejs_already"] += 1
+			else:
+				totals["treejs_error"] += 1
+				errors.append("{}/scripts/tree.js: fix_svg_locatetree_bridge: {}".format(lang, status5))
+
 	print("=== Steps 1-2 summary ({}) ===".format("DRY RUN" if dry_run else "APPLIED"))
 	print("languages processed:", len(found_langs))
 	print("models patched:      ", totals["models_patched"])
@@ -100,6 +113,9 @@ def run(root, dry_run):
 	print("language index.htm fixed:", totals["index_fixed"])
 	print("language index.htm already fixed:", totals["index_already"])
 	print("language index.htm errors:", totals["index_error"])
+	print("tree.js locateTree bridge fixed:", totals["treejs_fixed"])
+	print("tree.js locateTree bridge already fixed:", totals["treejs_already"])
+	print("tree.js locateTree bridge errors:", totals["treejs_error"])
 	if errors:
 		print("--- errors ---")
 		for e in errors:
