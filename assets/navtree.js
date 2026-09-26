@@ -76,14 +76,16 @@
 		var row = buildRow(config, "", iconSrc, name);
 		li.appendChild(row);
 
+		var node = { name: name, row: row, ancestors: ancestors, link: link };
+
 		row.addEventListener("click", function () {
-			if (config.activeRow) config.activeRow.parentNode.classList.remove("active");
-			li.classList.add("active");
-			config.activeRow = row;
+			activateNode(config, node);
 			window.open(link, config.target);
+			setDeepLink(link);
 		});
 
-		config.searchIndex.push({ name: name, row: row, ancestors: ancestors });
+		config.searchIndex.push(node);
+		config.linkIndex[link] = node;
 
 		return li;
 	}
@@ -109,12 +111,60 @@
 		});
 	}
 
-	function revealMatch(config, node) {
+	function revealAncestorsAndScroll(node) {
 		node.ancestors.forEach(function (folderLi) { folderLi.navtreeSetExpanded(true); });
+		node.row.scrollIntoView({ block: "center" });
+	}
+
+	function revealMatch(config, node) {
+		revealAncestorsAndScroll(node);
 		if (config.searchHitRow) config.searchHitRow.classList.remove("search-hit");
 		node.row.classList.add("search-hit");
 		config.searchHitRow = node.row;
-		node.row.scrollIntoView({ block: "center" });
+	}
+
+	// marks a leaf as the one currently loaded in the main frame - used both
+	// by a direct click and by restoring from a deep-link hash on page load
+	function activateNode(config, node) {
+		revealAncestorsAndScroll(node);
+		if (config.activeRow) config.activeRow.parentNode.classList.remove("active");
+		node.row.parentNode.classList.add("active");
+		config.activeRow = node.row;
+	}
+
+	// ---- deep linking: reflect the leaf loaded in "main" in the top-level
+	// URL's hash, so a full refresh (which reloads the top frameset page,
+	// not this navi frame) can restore both the main frame and this tree's
+	// expand/highlight state ----
+
+	var DEEP_LINK_RE = /(?:^|[#&])main=([^&]*)/;
+
+	function setDeepLink(link) {
+		try {
+			top.location.hash = "main=" + encodeURIComponent(link);
+		} catch (e) {
+			// cross-frame access should never throw here (same origin), but
+			// don't let a deep-link failure break normal navigation
+		}
+	}
+
+	function restoreFromHash(config) {
+		var hash;
+		try {
+			hash = top.location.hash;
+		} catch (e) {
+			return;
+		}
+		var m = DEEP_LINK_RE.exec(hash || "");
+		if (!m) return;
+		var link;
+		try {
+			link = decodeURIComponent(m[1]);
+		} catch (e) {
+			return;
+		}
+		var node = config.linkIndex[link];
+		if (node) activateNode(config, node);
 	}
 
 	function installStreeApi(config) {
@@ -150,6 +200,7 @@
 
 	function init(config) {
 		config.searchIndex = [];
+		config.linkIndex = {};
 		installStreeApi(config);
 
 		var container = document.getElementById(config.containerId || "navtree");
@@ -173,6 +224,7 @@
 				var ul = el("ul");
 				appendChildren(config, rootEl, ul, []);
 				container.appendChild(ul);
+				restoreFromHash(config);
 			})
 			.catch(function (err) {
 				container.textContent = "Failed to load navigation tree.";

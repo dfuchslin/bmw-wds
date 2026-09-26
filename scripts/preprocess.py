@@ -17,6 +17,8 @@ import add_language_assets
 import fix_charset_meta
 import fix_language_index
 import fix_svg_locatetree_bridge
+import fix_deep_linking_main
+import fix_navi_frame_scroll
 
 LANGUAGES = [
 	"ch", "de", "en", "fr", "gr", "it", "ja", "ko", "ni",
@@ -44,6 +46,8 @@ def run(root, dry_run):
 		"models_error": 0, "assets_copied": 0, "assets_already": 0,
 		"index_fixed": 0, "index_already": 0, "index_error": 0,
 		"treejs_fixed": 0, "treejs_already": 0, "treejs_error": 0,
+		"deeplink_fixed": 0, "deeplink_already": 0, "deeplink_error": 0,
+		"naviscroll_fixed": 0, "naviscroll_already": 0, "naviscroll_error": 0,
 	}
 	errors = []
 
@@ -73,9 +77,28 @@ def run(root, dry_run):
 				totals["models_error"] += 1
 				errors.append("{}/{}: patch_navi_htm: {}".format(lang, model_name, status2))
 
+			model_index_path = os.path.join(model_dir, "index.htm")
+			status3 = fix_deep_linking_main.process(model_index_path, dry_run=dry_run)
+			if status3 in ("fixed", "would fix"):
+				totals["deeplink_fixed"] += 1
+			elif status3 == "already fixed":
+				totals["deeplink_already"] += 1
+			else:
+				totals["deeplink_error"] += 1
+				errors.append("{}/{}/index.htm: fix_deep_linking_main: {}".format(lang, model_name, status3))
+
+			status6 = fix_navi_frame_scroll.process(model_index_path, dry_run=dry_run)
+			if status6 in ("fixed", "would fix"):
+				totals["naviscroll_fixed"] += 1
+			elif status6 == "already fixed":
+				totals["naviscroll_already"] += 1
+			else:
+				totals["naviscroll_error"] += 1
+				errors.append("{}/{}/index.htm: fix_navi_frame_scroll: {}".format(lang, model_name, status6))
+
 		asset_result = add_language_assets.process(lang_dir, dry_run=dry_run)
 		for _key, val in asset_result.items():
-			if val in ("copied", "would copy", "appended", "would append"):
+			if val in ("updated", "would update"):
 				totals["assets_copied"] += 1
 			else:
 				totals["assets_already"] += 1
@@ -116,6 +139,12 @@ def run(root, dry_run):
 	print("tree.js locateTree bridge fixed:", totals["treejs_fixed"])
 	print("tree.js locateTree bridge already fixed:", totals["treejs_already"])
 	print("tree.js locateTree bridge errors:", totals["treejs_error"])
+	print("model index.htm deep-linking fixed:", totals["deeplink_fixed"])
+	print("model index.htm deep-linking already fixed:", totals["deeplink_already"])
+	print("model index.htm deep-linking errors:", totals["deeplink_error"])
+	print("model index.htm navi frame scroll fixed:", totals["naviscroll_fixed"])
+	print("model index.htm navi frame scroll already fixed:", totals["naviscroll_already"])
+	print("model index.htm navi frame scroll errors:", totals["naviscroll_error"])
 	if errors:
 		print("--- errors ---")
 		for e in errors:
