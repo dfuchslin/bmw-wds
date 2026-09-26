@@ -31,7 +31,20 @@ fi
 echo "Copying $SOURCE_DIR -> $DEST_DIR ..."
 rm -rf "$DEST_DIR"
 mkdir -p "$DEST_DIR"
-rsync -a "$SOURCE_DIR"/ "$DEST_DIR"/
+
+if command -v rclone >/dev/null 2>&1; then
+	THREADS="$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)"
+	[ "$THREADS" -gt 4 ] 2>/dev/null && THREADS=4
+	echo "Using rclone ($THREADS streams) ..."
+	rclone copy "$SOURCE_DIR"/ "$DEST_DIR"/ \
+		--progress \
+		--links \
+		--multi-thread-streams="$THREADS" \
+		--transfers="$THREADS" \
+		--checkers="$((THREADS * 2))"
+else
+	rsync -a "$SOURCE_DIR"/ "$DEST_DIR"/
+fi
 
 echo "Making copy writable ..."
 chmod -R u+w "$DEST_DIR"

@@ -17,5 +17,6 @@ DEST_DIR="${2:-data}"
 ./scripts/copy_source.sh "$SOURCE_DIR" "$DEST_DIR"
 python3 ./scripts/preprocess.py --root "$DEST_DIR"
 
+echo
 echo "Done! To start, run:"
 echo "WDS_DATA_DIR=\"$DEST_DIR\" docker compose up --build -d"
